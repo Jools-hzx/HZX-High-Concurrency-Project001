@@ -300,11 +300,13 @@
             },
             success: function (data) {
                 if (data.code == 200) {
-                    // alert(data.message)
+                    console.log(data);
+                    alert(data.msg);
                     //如果code是200,说明登录成功., 就直接进入到商品列表页
-                    window.location.href = "/goods/toList"
+                    // window.location.href = "/goods/toList"
                 } else {
-                    alert(data.message)
+                    console.log(data);
+                    alert(data.msg)
                 }
             },
             error: function () {

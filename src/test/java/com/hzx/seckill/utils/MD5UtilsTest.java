@@ -12,6 +12,12 @@ import org.junit.jupiter.api.Test;
 public class MD5UtilsTest {
 
     @Test
+    public void testValidPwd() {
+        String dbPassword = MD5Utils.midToDbPassword("75d7eacdc4a31d0c8c939112ae5880cf", MD5Utils.MD5_SALT);
+        System.out.println(dbPassword);
+    }
+
+    @Test
     public void t1() {
 
         //1. 12345 就是用户输入的密码, inputPassToMidPass() 返回的是中间密码

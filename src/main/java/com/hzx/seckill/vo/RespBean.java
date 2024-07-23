@@ -39,19 +39,19 @@ public class RespBean {
     }
 
     //构建失败消息
-    public static RespBean error() {
+    public static RespBean error(RespBeanEnum respBeanEnum) {
         return new RespBean(
-                RespBeanEnum.ERROR.getCode(),
-                RespBeanEnum.ERROR.getMessage(),
+                respBeanEnum.getCode(),
+                respBeanEnum.getMessage(),
                 null
         );
     }
 
     //构建失败消息并且携带数据
-    public static RespBean error(Object data) {
+    public static RespBean error(RespBeanEnum respBeanEnum, Object data) {
         return new RespBean(
-                RespBeanEnum.ERROR.getCode(),
-                RespBeanEnum.ERROR.getMessage(),
+                respBeanEnum.getCode(),
+                respBeanEnum.getMessage(),
                 data
         );
     }
