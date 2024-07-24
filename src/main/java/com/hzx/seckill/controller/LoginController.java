@@ -6,8 +6,10 @@ import com.hzx.seckill.vo.RespBean;
 import com.hzx.seckill.vo.RespBeanEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -21,7 +23,7 @@ import javax.servlet.http.HttpServletResponse;
  */
 
 @Slf4j
-@Controller
+@RestController
 @RequestMapping("/login")
 public class LoginController {
 
@@ -34,14 +36,8 @@ public class LoginController {
     }
 
     @RequestMapping("/doLogin")
-    @ResponseBody
-    public RespBean doLogin(LoginVo loginVo, HttpServletRequest request, HttpServletResponse response) {
+    public RespBean doLogin(@Validated LoginVo loginVo, HttpServletRequest request, HttpServletResponse response) {
         log.info("loginVo:{}", loginVo);
-
-        try {
-            return userService.validLoginVo(loginVo, request, response);
-        } catch (Exception e) {
-            return RespBean.error(RespBeanEnum.ERROR);
-        }
+        return userService.validLoginVo(loginVo, request, response);
     }
 }
