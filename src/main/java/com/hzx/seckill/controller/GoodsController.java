@@ -30,18 +30,20 @@ public class GoodsController {
 
     //跳转到商品列表界面
     @RequestMapping("/list")
-    public String toGoodsList(HttpServletRequest request, HttpServletResponse response,
-                            Model model, @CookieValue(value = "userTicket") String userTicket) {
-        //1.判断是否携带 Cookie
-        if (!StringUtils.hasText(userTicket)) {  //如果用户未登录，返回登录
-            return "login";
-        }
-        //2.判断是否能够获取到登录的 User
+    public String toGoodsList(User user, Model model/*, @CookieValue(value = "userTicket") String userTicket*/) {
+//        //1.判断是否携带 Cookie
+//        if (!StringUtils.hasText(userTicket)) {  //如果用户未登录，返回登录
+//            return "login";
+//        }
+//        //2.判断是否能够获取到登录的 User
+//
+//        /*User user = (User) request.getSession().getAttribute(ticket);*/
+//        //从 Redis 存储的数据中获取
+//        log.info("请求查询携带的 userTicket:{}", userTicket);
+//        User user = userService.getUserByTicket(userTicket, request, response);
 
-        /*User user = (User) request.getSession().getAttribute(ticket);*/
-        //从 Redis 存储的数据中获取
-        log.info("请求查询携带的 userTicket:{}", userTicket);
-        User user = userService.getUserByTicket(userTicket, request, response);
+        //使用 WebMvcConfigurer 简化上述逻辑
+
         if (null == user) {     //如果未获取到登录用户，返回登录
             return "login";
         }
@@ -53,5 +55,4 @@ public class GoodsController {
         //3.跳转到商品页面
         return "goodsList";
     }
-
 }
