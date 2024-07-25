@@ -5,18 +5,25 @@ import com.hzx.seckill.exception.GlobalException;
 import com.hzx.seckill.pojo.User;
 import com.hzx.seckill.service.UserService;
 import com.hzx.seckill.mapper.UserMapper;
+import com.hzx.seckill.utils.CookieUtil;
 import com.hzx.seckill.utils.MD5Utils;
+import com.hzx.seckill.utils.UUIDUtils;
 import com.hzx.seckill.utils.ValidatorUtils;
 import com.hzx.seckill.vo.LoginVo;
 import com.hzx.seckill.vo.RespBean;
 import com.hzx.seckill.vo.RespBeanEnum;
+import com.sun.org.apache.bcel.internal.generic.NEW;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import sun.rmi.runtime.Log;
 
 import javax.annotation.Resource;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 import java.util.Map;
 
 /**
@@ -25,12 +32,16 @@ import java.util.Map;
  * @createDate 2024-07-23 20:07:43
  */
 @Service
+@Slf4j
 public class UserServiceImpl
         extends ServiceImpl<UserMapper, User>
         implements UserService {
 
     @Resource
     private UserMapper userMapper;
+
+    @Resource
+    private RedisTemplate redisTemplate;
 
 
     @Override
@@ -63,7 +74,40 @@ public class UserServiceImpl
         if (!MD5Utils.midToDbPassword(password, user.getSlat()).equals(user.getPassword())) {
             return RespBean.error(RespBeanEnum.LOGIN_ERROR);
         }
+
+        //随机生成ticket
+        String ticket = UUIDUtils.getUUIDTicket();
+
+        /*
+            HttpSession session = httpServletRequest.getSession();
+            基于 ticket 可以获取到当前登录的 user 信息
+            session.setAttribute(ticket, user);
+         */
+
+        //使用 user:ticket字符串的格式存储到 Redis
+        redisTemplate.opsForValue().set("user:" + ticket, user);
+
+        //登陆成功，返回携带着 ticket 的 cookie
+        CookieUtil.setCookie(
+                httpServletRequest, httpServletResponse,
+                "userTicket", ticket);
+
         return RespBean.success();
+    }
+
+    @Override
+    public User getUserByTicket(String userTicket, HttpServletRequest request, HttpServletResponse response) {
+
+        if (!StringUtils.hasText(userTicket) || null == userTicket) return null;
+        User user = null;
+        try {
+            user = (User) redisTemplate.opsForValue().get("user:" + userTicket);
+            //更新 Cookie 内 userTicket 的持续时间
+            CookieUtil.setCookie(request, response,"userTicket", userTicket);
+        } catch (Exception e) {
+            return null;
+        }
+        return user;
     }
 }
 

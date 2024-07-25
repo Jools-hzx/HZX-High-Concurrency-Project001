@@ -22,6 +22,23 @@ spring:
       # 测试连接是否可用的查询语句
       connection-test-query: select 1
   #mybatis-plus 配置
+  # 配置 redis
+  redis:
+    host: 192.168.23.128
+    port: 6379
+    password: hzx2001
+    database: 0 #配置默认访问的数据库
+    connect-timeout: 10000ms
+    lettuce:
+      pool:
+        # 最大连接数目: 默认是 8
+        max-active: 28
+        # 最大连接阻塞等待时间，默认是 -1
+        max-wait: 10000ms
+        # 最大空闲连接，默认是 8
+        max-idle: 200
+        # 最小空闲连接，默认是 0
+        min-idle: 5
 mybatis-plus:
   #配置 mybatis 数据返回类型别名
   type-aliases-package: com.hzx.seckill.pojo
@@ -31,4 +48,3 @@ mybatis-plus:
 logging:
   level:
     com.hzx.seckill.mapper: debug
-

@@ -3,7 +3,6 @@ package com.hzx.seckill.controller;
 import com.hzx.seckill.service.UserService;
 import com.hzx.seckill.vo.LoginVo;
 import com.hzx.seckill.vo.RespBean;
-import com.hzx.seckill.vo.RespBeanEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
@@ -23,7 +22,7 @@ import javax.servlet.http.HttpServletResponse;
  */
 
 @Slf4j
-@RestController
+@Controller
 @RequestMapping("/login")
 public class LoginController {
 
@@ -36,6 +35,7 @@ public class LoginController {
     }
 
     @RequestMapping("/doLogin")
+    @ResponseBody
     public RespBean doLogin(@Validated LoginVo loginVo, HttpServletRequest request, HttpServletResponse response) {
         log.info("loginVo:{}", loginVo);
         return userService.validLoginVo(loginVo, request, response);

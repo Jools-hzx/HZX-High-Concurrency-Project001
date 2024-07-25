@@ -23,4 +23,12 @@ public interface UserService extends IService<User> {
                           HttpServletResponse httpServletResponse);
 
 
+    /**
+     * 基于 ticket 获取已经登录的 用户信息
+     *
+     * @param ticket 校验 ticket
+     * @return 已经登录的用户信息
+     */
+    User getUserByTicket(String ticket, HttpServletRequest request, HttpServletResponse response);
+
 }
