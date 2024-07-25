@@ -260,7 +260,8 @@
             <div class="signin">
                 <h1>用户登录~~</h1>
                 <form class="more-padding" id="loginForm" method="post" autocomplete="off">
-                    <input style="background-color: darkgrey;" id="mobile" name="mobile" type="text" placeholder="手机号码"
+                    <input style="background-color: darkgrey;" id="mobile" name="mobile" type="text"
+                           placeholder="手机号码"
                            required="true"/>
                     <input style="background-color: darkgrey;" id="password" name="password" type="password"
                            placeholder="密码" required="true"/>
@@ -299,11 +300,12 @@
                 password: password
             },
             success: function (data) {
-                if (data.code == 200) {
+                if (data.code === 200) {
                     console.log(data);
                     alert(data.msg);
-                    //如果code是200,说明登录成功., 就直接进入到商品列表页
-                    // window.location.href = "/goods/toList"
+                    //如果code是200,说明登录成功,就直接进入到商品列表页
+                    layer.msg("登陆成功~~")
+                    window.location.href = "/goods/list"
                 } else {
                     console.log(data);
                     alert(data.msg)

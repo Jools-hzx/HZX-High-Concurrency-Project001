@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hzx.seckill.mapper.GoodsMapper">
+
+    <resultMap id="BaseResultMap" type="com.hzx.seckill.pojo.Goods">
+            <id property="id" column="id" jdbcType="BIGINT"/>
+            <result property="goodsName" column="goods_name" jdbcType="VARCHAR"/>
+            <result property="goodsTitle" column="goods_title" jdbcType="VARCHAR"/>
+            <result property="goodsImg" column="goods_img" jdbcType="VARCHAR"/>
+            <result property="goodsDetail" column="goods_detail" jdbcType="VARCHAR"/>
+            <result property="goodsPrice" column="goods_price" jdbcType="DECIMAL"/>
+            <result property="goodsStock" column="goods_stock" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,
+        goods_name,goods_title,
+        goods_img,goods_detail,goods_price,
+        goods_stock
+    </sql>
+
+    <select id="listGoodsVo" resultType="com.hzx.seckill.vo.GoodsVo">
+        -- 查询所有秒杀商品 t_seckill_goods 的信息及其存储在 t_goods 表内的信息
+        SELECT
+            g.id,
+            g.goods_name,
+            g.goods_title,
+            g.goods_detail,
+            g.goods_img,
+            g.goods_price,
+            g.goods_stock,
+            sg.id,
+            sg.seckill_price,
+            sg.stock_count,
+            sg.start_date,
+            sg.end_date
+        FROM `t_goods` g
+        LEFT JOIN `t_seckill_goods` sg
+                  ON g.id = sg.goods_id
+    </select>
+
+    <select id="getGoodsVoByGoodsId" resultType="com.hzx.seckill.vo.GoodsVo">
+        SELECT
+            g.id,
+            g.goods_name,
+            g.goods_title,
+            g.goods_detail,
+            g.goods_img,
+            g.goods_price,
+            g.goods_stock,
+            sg.id,
+            sg.seckill_price,
+            sg.stock_count,
+            sg.start_date,
+            sg.end_date
+        FROM
+            `t_goods` g
+                LEFT JOIN `t_seckill_goods` sg
+                          ON g.id = sg.goods_id
+        WHERE g.id = #{goodsId};
+    </select>
+</mapper>

@@ -92,7 +92,7 @@ public class UserServiceImpl
                 httpServletRequest, httpServletResponse,
                 "userTicket", ticket);
 
-        return RespBean.success();
+        return RespBean.success(RespBeanEnum.SUCCESS);
     }
 
     @Override
