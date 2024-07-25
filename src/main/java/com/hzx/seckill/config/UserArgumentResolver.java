@@ -60,7 +60,7 @@ public class UserArgumentResolver implements HandlerMethodArgumentResolver {
         HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
         HttpServletResponse response = webRequest.getNativeResponse(HttpServletResponse.class);
 
-        //从当前 request 内取出 userTicket
+        //从当前 request 内取出 userTicketxq
         String userTicket = CookieUtil.getCookieValue(request, "userTicket");
 
         //判断是否携带 ticket
