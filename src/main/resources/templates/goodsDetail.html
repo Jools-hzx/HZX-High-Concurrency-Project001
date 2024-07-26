@@ -156,21 +156,22 @@
                 <td id="startTime" th:text="${#dates.format(goods.startDate,'yyyy-MM-dd HH:mm:ss')}"></td>
                 <td id="seckillTip">
                     <input type="hidden" id="remainSeconds" th:value="${remainSeconds}"/>
-                    <span th:if="${secKillStatus eq 0}">秒杀倒计时：<span id="countDown" th:text="${remainSeconds}"> </span>秒</span>
+                    <span th:if="${secKillStatus eq 0}">秒杀倒计时：<span id="countDown"
+                                                                         th:text="${remainSeconds}"> </span>秒</span>
                     <span th:if="${secKillStatus eq 1}">秒杀进行中</span>
                     <span th:if="${secKillStatus eq 2}">秒杀已结束</span>
                 </td>
                 <td>
-                    <!--                    <form id="secKillForm" method="post" action="/seckill/doSeckill">-->
-                    <!--                        <input type="hidden" id="goodsId" name="goodsId" th:value="${goods.id}">-->
-                    <!--                        <button class="btn btn-primary btn-block" type="submit" id="buyButton">抢购</button>-->
-                    <!--                    </form>-->
+                    <form id="secKillForm" method="post" action="/seckill/doSeckill">
+                        <input type="hidden" id="goodsId" name="goodsId" th:value="${goods.id}">
+                        <button class="btn btn-primary btn-block" type="submit" id="buyButton">抢购</button>
+                    </form>
 
                     <!-- 对应秒杀v6.0后台 隐藏秒杀接口-->
-                    <input type="hidden" id="goodsId" name="goodsId" th:value="${goods.id}">
-                    <button class="btn btn-primary btn-block" type="submit" onclick="getSecKillPath()" id="buyButton">
-                        立即秒杀
-                    </button>
+                    <!--                    <input type="hidden" id="goodsId" name="goodsId" th:value="${goods.id}">-->
+                    <!--                    <button class="btn btn-primary btn-block" type="submit" onclick="getSecKillPath()" id="buyButton">-->
+                    <!--                        立即秒杀-->
+                    <!--                    </button>-->
                 </td>
             </tr>
 
