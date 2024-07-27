@@ -15,6 +15,8 @@ import javax.servlet.http.HttpServletResponse;
  */
 public interface UserService extends IService<User> {
 
+    RespBean changeUserPwd(String pwd, String userTicket, HttpServletRequest request, HttpServletResponse response);
+
     /*
      验证登录信息是否合法
      */

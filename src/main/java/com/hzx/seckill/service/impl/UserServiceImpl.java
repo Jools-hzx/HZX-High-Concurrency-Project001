@@ -39,10 +39,35 @@ public class UserServiceImpl
 
     @Resource
     private UserMapper userMapper;
-
     @Resource
     private RedisTemplate redisTemplate;
 
+    @Override
+    public RespBean changeUserPwd(String pwd, String userTicket,
+                                  HttpServletRequest request, HttpServletResponse response) {
+
+        //基于 userTicket 查询用户
+        User user = this.getUserByTicket(userTicket, request, response);
+        if (null == user) {     //如果查询不到该用户,抛出异常
+            log.error("持有 userTicket:{} 的用户不存在", userTicket);
+            throw new GlobalException(RespBeanEnum.MOBILE_NOT_EXIST_ERROR);
+        }
+
+        //检查密码
+        if (!StringUtils.hasText(pwd)) {
+            log.error("更新的密码不能为空");
+            throw new GlobalException(RespBeanEnum.UPDATE_PWD_FAIL_ERROR);
+        }
+
+        user.setPassword(MD5Utils.inputStrToDbPassword(pwd));      //配置用户密码
+        boolean updated = this.updateById(user);    //更新用户密码
+        if (updated) {      //如果删除成功，剔除Redis内的相关记录，更新缓存
+            redisTemplate.delete("user:" + userTicket);
+            return RespBean.success();
+        }
+        //否则抛出更新密码错误异常
+        return RespBean.error(RespBeanEnum.UPDATE_PWD_FAIL_ERROR);
+    }
 
     @Override
     public RespBean validLoginVo(LoginVo loginVo, HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
@@ -92,7 +117,7 @@ public class UserServiceImpl
                 httpServletRequest, httpServletResponse,
                 "userTicket", ticket);
 
-        return RespBean.success(RespBeanEnum.SUCCESS);
+        return RespBean.success(ticket);
     }
 
     @Override
@@ -103,7 +128,7 @@ public class UserServiceImpl
         try {
             user = (User) redisTemplate.opsForValue().get("user:" + userTicket);
             //更新 Cookie 内 userTicket 的持续时间
-            CookieUtil.setCookie(request, response,"userTicket", userTicket);
+            CookieUtil.setCookie(request, response, "userTicket", userTicket);
         } catch (Exception e) {
             return null;
         }

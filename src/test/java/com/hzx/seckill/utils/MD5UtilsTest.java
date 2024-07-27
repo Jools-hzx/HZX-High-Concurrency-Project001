@@ -12,6 +12,20 @@ import org.junit.jupiter.api.Test;
 public class MD5UtilsTest {
 
     @Test
+    public void testMD5MidPwd() {
+        String mid = "cb063decabc24b95d7023e7914138d81";
+        String dbPassword = MD5Utils.midToDbPassword(mid, MD5Utils.MD5_SALT);
+        System.out.println(dbPassword);
+    }
+
+    @Test
+    public void testInitToPwd() {
+        String init = "123";
+        String dbPwd = MD5Utils.inputStrToDbPassword(init);
+        System.out.println(dbPwd);
+    }
+
+    @Test
     public void testValidPwd() {
         String dbPassword = MD5Utils.midToDbPassword("75d7eacdc4a31d0c8c939112ae5880cf", MD5Utils.MD5_SALT);
         System.out.println(dbPassword);
