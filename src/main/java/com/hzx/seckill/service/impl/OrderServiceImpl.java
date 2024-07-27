@@ -1,6 +1,7 @@
 package com.hzx.seckill.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hzx.seckill.exception.GlobalException;
 import com.hzx.seckill.mapper.SeckillGoodsMapper;
@@ -12,11 +13,16 @@ import com.hzx.seckill.pojo.User;
 import com.hzx.seckill.service.GoodsService;
 import com.hzx.seckill.service.OrderService;
 import com.hzx.seckill.mapper.OrderMapper;
+import com.hzx.seckill.service.SeckillGoodsService;
 import com.hzx.seckill.service.SeckillOrderService;
 import com.hzx.seckill.vo.GoodsVo;
 import com.hzx.seckill.vo.RespBeanEnum;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.math.BigDecimal;
@@ -38,7 +44,12 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>
     private SeckillGoodsMapper seckillGoodsMapper;
     @Resource
     private SeckillOrderService seckillOrderService;
+    @Resource
+    private SeckillGoodsService seckillGoodsService;
+    @Resource
+    private RedisTemplate redisTemplate;
 
+    @Transactional(propagation = Propagation.REQUIRED)
     @Override
     public Order saveSecKillOrder(User user, GoodsVo goodsVo) {
         /*
@@ -64,6 +75,21 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>
             );
             Integer goodsStockCount = skGoods.getStockCount();
 
+            //在默认的事务隔离级别下，REPEATABLE READ 之中
+            //UPDATE 语句会在事务中锁定需要更新的行
+            //这可以防止其他会话在同一行上执行 UPDATE 或者 DELETE 操作
+            //如果更新成功，返回true 否则返回 false.
+            //更新成功的条件为受影响的行数 >= 1
+            boolean update = seckillGoodsService.update(
+                    new UpdateWrapper<SeckillGoods>()
+                            .setSql("stock_count = stock_count - 1")
+                            .eq("goods_id", goodsVo.getId())
+                            .gt("stock_count", 0)
+            );
+            if (!update) {     //如果更新成功，说明库存允许秒杀，否则直接返回不生成订单
+                return null;
+            }
+
             //基于秒杀商品的信息封装成一个商品订单信息
             order = new Order();
             order.setCreateDate(new Date());
@@ -79,11 +105,15 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>
             //保存订单
             orderService.save(order);
 
-            //更新商品库存 - 1
-            skGoods.setStockCount(goodsStockCount - 1);
-            seckillGoodsMapper.update(skGoods,
-                    new QueryWrapper<SeckillGoods>()
+            /*
+             移动至生成订单之前，防止超卖
+             更新商品库存 - 1
+                skGoods.setStockCount(goodsStockCount - 1);
+                seckillGoodsMapper.update(
+                        skGoods,
+                        new QueryWrapper<SeckillGoods>()
                             .eq("goods_id", skGoods.getGoodsId()));
+             */
 
             //生成一个秒杀订单
             SeckillOrder seckillOrder = new SeckillOrder();
@@ -92,8 +122,14 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>
             seckillOrder.setGoodsId(skGoods.getGoodsId());
 
             //保存秒杀订单
-            seckillOrderService.save(seckillOrder);
+            boolean saved = seckillOrderService.save(seckillOrder);
 
+            if (saved) {
+                //将生成的秒杀订单存放进 Redis,优化查询用户复购的速度
+                redisTemplate.opsForValue().set("order:" + user.getId() + ":" + goodsId, seckillOrder);
+            } else {
+                throw new GlobalException(RespBeanEnum.ERROR);
+            }
         } catch (Exception e) {
             log.info("生成秒杀订单是发生错误: user:{} goodsId:{}", user.getId(), goodsVo.getId());
             throw new GlobalException(RespBeanEnum.ERROR);

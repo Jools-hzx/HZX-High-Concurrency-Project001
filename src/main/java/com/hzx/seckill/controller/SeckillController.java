@@ -12,7 +12,10 @@ import com.hzx.seckill.service.SeckillOrderService;
 import com.hzx.seckill.vo.GoodsVo;
 import com.hzx.seckill.vo.RespBeanEnum;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 
@@ -39,6 +42,9 @@ public class SeckillController {
     @Resource
     private OrderService orderService;
 
+    @Resource
+    private RedisTemplate redisTemplate;
+
     @RequestMapping("/doSeckill")
     public String doSecKill(User user, Model model, Integer goodsId) {
 
@@ -61,21 +67,32 @@ public class SeckillController {
             return "secKillFail";
         }
 
-        //检查是否发生重复购买
+        //检查是否发生重复购买 - 使用 Redis 进行优化
+        /*
         SeckillOrder seckillOrder = seckillOrderService.getOne(new QueryWrapper<SeckillOrder>()
-                .eq("user_id", user.getId())
-                .eq("goods_id", goodsId));
+                                                        .eq("user_id", user.getId())
+                                                        .eq("goods_id", goodsId));
         if (null != seckillOrder) {
+            model.addAttribute("errmsg", RespBeanEnum.SECKILL_FAIL_DUPLICATE_BUY);
+            return "secKillFail";
+        }
+         */
+        Order order = null;
+
+        order = (Order) redisTemplate.opsForValue().get("order:" + user.getId() + ":" + goodsId);
+        // 如果查询到该用户已经有该商品的秒杀订单，返回重复购买错误消息
+        if (null != order) {
             model.addAttribute("errmsg", RespBeanEnum.SECKILL_FAIL_DUPLICATE_BUY);
             return "secKillFail";
         }
 
         //否则建立秒杀订单
-        Order order = orderService.saveSecKillOrder(user, goodsVo);
+        order = orderService.saveSecKillOrder(user, goodsVo);
         if (null == order) {
             model.addAttribute("errmsg", RespBeanEnum.ERROR);
             return "secKillFail";
         }
+
         //携带订单数据
         model.addAttribute("order", order);
         //携带商品数据
