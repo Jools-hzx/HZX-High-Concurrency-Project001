@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
  * @date 2024/7/27 22:19
  * @description: TODO
  */
-@Configuration
+//@Configuration
 public class RabbitMQConfig {
 
     private static final String QUEUE = "queue";

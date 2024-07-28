@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
  * @date 2024/7/28 14:52
  * @description: 针对 Topic 使用模式的配置类
  */
-@Configuration
+//@Configuration
 public class RabbitMQTopicConfig {
 
 

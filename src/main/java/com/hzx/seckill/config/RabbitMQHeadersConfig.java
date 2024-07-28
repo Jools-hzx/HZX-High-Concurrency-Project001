@@ -16,7 +16,7 @@ import java.util.Map;
  * @date 2024/7/28 16:08
  * @description: RabbitMQ 基于 Headers 工作模式的配置
  */
-@Configuration
+//@Configuration
 public class RabbitMQHeadersConfig {
 
     private static final String QUEUE01 = "queue_header01";
