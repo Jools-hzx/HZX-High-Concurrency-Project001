@@ -16,6 +16,10 @@
     <url>http://maven.apache.org</url>
 
     <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
         <!-- 工程创建需要引入的相关 jar -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
