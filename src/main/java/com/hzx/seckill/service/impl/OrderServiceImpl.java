@@ -62,6 +62,11 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>
         ● 保存秒杀订单
          */
         Order order = null;
+        //构建秒杀订单错误key
+        StringBuilder failOrderkey = new StringBuilder()
+                .append("seckillFail:")
+                .append(user.getId() + ":")
+                .append(goodsVo.getId());
         try {
             //通过GoodsVo获取秒杀商品的信息
             Long goodsId = goodsVo.getId();
@@ -86,7 +91,11 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>
                             .eq("goods_id", goodsVo.getId())
                             .gt("stock_count", 0)
             );
-            if (!update) {     //如果更新成功，说明库存允许秒杀，否则直接返回不生成订单
+            //如果更新成功，说明库存允许秒杀，否则直接返回不生成订单
+            if (!update) {
+                //如果更新失败，则构建失败订单消息保存到Redis内；供前端轮询查询结果
+                redisTemplate.opsForValue().set(failOrderkey,
+                        failOrderkey.append("-").append(new Date()).toString());
                 return null;
             }
 
@@ -128,10 +137,16 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>
                 //将生成的秒杀订单存放进 Redis,优化查询用户复购的速度
                 redisTemplate.opsForValue().set("order:" + user.getId() + ":" + goodsId, seckillOrder);
             } else {
+                //如果生成秒杀订单失败，记录失败订单
+                redisTemplate.opsForValue().set(failOrderkey,
+                        failOrderkey.append("-").append(new Date()).toString());
                 throw new GlobalException(RespBeanEnum.ERROR);
             }
         } catch (Exception e) {
             log.info("生成秒杀订单是发生错误: user:{} goodsId:{}", user.getId(), goodsVo.getId());
+            //如果发生异常，记录失败订单
+            redisTemplate.opsForValue().set(failOrderkey,
+                    failOrderkey.append("-").append(new Date()).toString());
             throw new GlobalException(RespBeanEnum.ERROR);
         }
         return order;
