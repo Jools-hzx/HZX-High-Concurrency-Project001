@@ -9,7 +9,12 @@ import com.hzx.seckill.service.OrderService;
 import com.hzx.seckill.service.SeckillGoodsService;
 import com.hzx.seckill.service.SeckillOrderService;
 import com.hzx.seckill.vo.GoodsVo;
+import com.hzx.seckill.vo.RespBean;
 import com.hzx.seckill.vo.RespBeanEnum;
+import com.ramostear.captcha.HappyCaptcha;
+import com.ramostear.captcha.common.Fonts;
+import com.ramostear.captcha.support.CaptchaStyle;
+import com.ramostear.captcha.support.CaptchaType;
 import com.sun.org.apache.bcel.internal.generic.NEW;
 import com.sun.org.apache.xpath.internal.operations.Mod;
 import lombok.extern.slf4j.Slf4j;
@@ -17,15 +22,21 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Controller;
+import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.util.CollectionUtils;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author Jools He
@@ -114,17 +125,49 @@ public class SeckillController implements InitializingBean {
 //        return "orderDetail";
 //    }
 
-    @RequestMapping("/doSeckill")
-    public String doSecKill(User user, Model model, Integer goodsId) {
+    //优化六:该接口用于请求该用户用于秒杀的唯一路径
+    //优化七:携带用户输入的校验码，校验码校验通过之后才能完成秒杀操作
+    @GetMapping("/path")
+    @ResponseBody
+    public RespBean getPath(User user, Long goodsId, String captcha) {
+        if (user == null) return RespBean.error(RespBeanEnum.SESSION_INVALID_ERROR);
+
+        //优化七：引入验证码校验机制，防止脚本
+        boolean captchaValid = seckillOrderService.checkCaptcha(user, goodsId.longValue(), captcha);
+        log.info("接收到校验码:{}", captcha);
+        if (!captchaValid) {
+            return RespBean.error(RespBeanEnum.CAPTCHA_NO_VALID);
+        }
+
+        //创建真正的地址
+        String url = seckillOrderService.createPath(user, goodsId);
+        return RespBean.success(url);
+    }
+
+    //优化六: 引入秒杀路径校验机制
+    @RequestMapping("/{path}/doSeckill")
+    @ResponseBody
+    public RespBean doSecKill(@PathVariable String path,
+                              User user, Model model,
+                              Integer goodsId) {
 
         //检查输入
         if (null == goodsId || goodsId < 1 || null == model) {
-            return "goodsList";
+            return RespBean.error(RespBeanEnum.BING_ERROR);
+//            return "goodsList";
         }
 
         //1.检查登录
         if (null == user) {
-            return "login";
+//            return "login";
+            return RespBean.error(RespBeanEnum.SESSION_INVALID_ERROR);
+        }
+
+        //优化六: 引入秒杀路径校验机制
+        boolean valid = seckillOrderService.checkPath(user, goodsId.longValue(), path);
+        if (!valid) {
+            //如果校验不成功，则返回非法请求信息
+            return RespBean.error(RespBeanEnum.REQUEST_ILLEGAL);
         }
 
         //获取要进行秒杀抢购的商品信息
@@ -132,8 +175,9 @@ public class SeckillController implements InitializingBean {
 
         Integer remainStock = goodsVo.getStockCount();
         if (remainStock < 1) {
-            model.addAttribute("errmsg", RespBeanEnum.SECKILL_FAIL_NOT_ENOUGH_STOCK);
-            return "secKillFail";
+//            model.addAttribute("errmsg", RespBeanEnum.SECKILL_FAIL_NOT_ENOUGH_STOCK);
+            return RespBean.error(RespBeanEnum.SECKILL_FAIL_NOT_ENOUGH_STOCK);
+//            return "secKillFail";
         }
 
         //优化一: 检查是否发生重复购买;使用 Redis 进行优化
@@ -151,8 +195,9 @@ public class SeckillController implements InitializingBean {
         order = (SeckillOrder) redisTemplate.opsForValue().get("order:" + user.getId() + ":" + goodsId);
         // 如果查询到该用户已经有该商品的秒杀订单，返回重复购买错误消息
         if (null != order) {
-            model.addAttribute("errmsg", RespBeanEnum.SECKILL_FAIL_DUPLICATE_BUY);
-            return "secKillFail";
+//            model.addAttribute("errmsg", RespBeanEnum.SECKILL_FAIL_DUPLICATE_BUY);
+//            return "secKillFail";
+            return RespBean.error(RespBeanEnum.SECKILL_FAIL_DUPLICATE_BUY);
         }
 
         //优化三: 使用内存标记
@@ -160,8 +205,9 @@ public class SeckillController implements InitializingBean {
         if (!stockCountFlag.get(goodsVo.getId())) {
             log.info("内存标记检验 - goodsId:{}", goodsVo.getId());
             //直接返回
-            model.addAttribute("errmsg", RespBeanEnum.SECKILL_FAIL_NOT_ENOUGH_STOCK);
-            return "secKillFail";
+//            model.addAttribute("errmsg", RespBeanEnum.SECKILL_FAIL_NOT_ENOUGH_STOCK);
+//            return "secKillFail";
+            return RespBean.error(RespBeanEnum.SECKILL_FAIL_NOT_ENOUGH_STOCK);
         }
 
         //优化二：使用Redis完成预减
@@ -172,18 +218,18 @@ public class SeckillController implements InitializingBean {
             //将负数情况 + 1 置为 0 供下一次 decr 检查
             //返回库存不足秒杀失败消息
             redisTemplate.opsForValue().increment("seckillGoods:" + goodsVo.getId());
-            model.addAttribute("errmsg", RespBeanEnum.SECKILL_FAIL_NOT_ENOUGH_STOCK);
+//            model.addAttribute("errmsg", RespBeanEnum.SECKILL_FAIL_NOT_ENOUGH_STOCK);
 
             //如果内存已经探测到库存减为 0，更新内存标记
             stockCountFlag.put(Long.valueOf(goodsId), false);
 
             //返回秒杀失败界面
-            return "secKillFail";
+//            return "secKillFail";
+            return RespBean.error(RespBeanEnum.SECKILL_FAIL_NOT_ENOUGH_STOCK);
         }
 
-        //否则建立秒杀订单
+        //否则建立秒杀订单  --> 优化五: 引入消息队列，实现异步完成秒杀操作
         /*
-         优化四: 引入消息队列，实现异步完成秒杀操作
          order = orderService.saveSecKillOrder(user, goodsVo);
         if (null == order) {
             model.addAttribute("errmsg", RespBeanEnum.ERROR);
@@ -197,7 +243,7 @@ public class SeckillController implements InitializingBean {
         return "orderDetail";
          */
 
-        //优化四: 引入消息队列，实现异步完成秒杀操作
+        //优化五: 引入消息队列，实现异步完成秒杀操作
         //如果以上秒杀条件符合，构建秒杀请求消息，调用消息队列 Producer (Sender) 发送消息
         SeckillMessage seckillMessage = new SeckillMessage();
         seckillMessage.setUser(user);
@@ -209,7 +255,7 @@ public class SeckillController implements InitializingBean {
         //直接返回 "秒杀中...." 消息给前端
         model.addAttribute("errmsg", "秒杀排队中...");
 
-        return "secKillFail";
+        return RespBean.error(RespBeanEnum.SEC_KILL_WAIT);
     }
 
     @RequestMapping("/checkSeckill/{goodsId}")
@@ -284,4 +330,29 @@ public class SeckillController implements InitializingBean {
                 }
         );
     }
+
+    //为每个用户分配校验码
+    @RequestMapping("/captcha")
+    public void happyCahptcha(User user, Long goodsId,
+                              HttpServletRequest request, HttpServletResponse response) {
+        System.out.println("请求 goodsId:" + goodsId);
+        if (null == user || goodsId < 1) return;
+        HappyCaptcha.require(request, response)
+                .style(CaptchaStyle.ANIM) //设置展现样式为动画
+                .type(CaptchaType.NUMBER) //设置验证码内容为数字
+                .length(6) //设置字符长度为 6
+                .width(220) //设置动画宽度为 220
+                .height(80) //设置动画高度为 80
+                .font(Fonts.getInstance().zhFont()) //设置汉字的字体
+                .build().finish(); //生成并输出验证码
+
+        //将生成的校验码存放到 Redis
+        redisTemplate.opsForValue().set(
+                "captcha:" + user.getId() + ":" + goodsId,
+                (String) request.getSession().getAttribute("happy-captcha"),
+                100,
+                TimeUnit.SECONDS);  //设置验证码有效期为 100
+    }
+
+
 }

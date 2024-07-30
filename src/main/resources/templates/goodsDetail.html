@@ -162,16 +162,15 @@
                     <span th:if="${secKillStatus eq 2}">秒杀已结束</span>
                 </td>
                 <td>
-                    <form id="secKillForm" method="post" action="/seckill/doSeckill">
-                        <input type="hidden" id="goodsId" name="goodsId" th:value="${goods.id}">
-                        <button class="btn btn-primary btn-block" type="submit" id="buyButton">抢购</button>
-                    </form>
-
-                    <!-- 对应秒杀v6.0后台 隐藏秒杀接口-->
-                    <!--                    <input type="hidden" id="goodsId" name="goodsId" th:value="${goods.id}">-->
-                    <!--                    <button class="btn btn-primary btn-block" type="submit" onclick="getSecKillPath()" id="buyButton">-->
-                    <!--                        立即秒杀-->
-                    <!--                    </button>-->
+                    <!--  <form id="secKillForm" method="post" action="/seckill/doSeckill">-->
+                    <!--  <input type="hidden" id="goodsId" name="goodsId" th:value="${goods.id}">-->
+                    <!--  <button class="btn btn-primary btn-block" type="submit" id="buyButton">抢购</button>-->
+                    <!--  </form> -->
+                    <!--  对应秒杀v6.0后台 隐藏秒杀接口 -->
+                    <input type="hidden" id="goodsId" name="goodsId" th:value="${goods.id}">
+                    <button class="btn btn-primary btn-block" type="submit" onclick="getSecKillPath()" id="buyButton">
+                        立即秒杀
+                    </button>
                 </td>
             </tr>
 
@@ -250,11 +249,13 @@
             success: function (data) {
                 if (data.code == 200) {
                     //取出服务器返回的随机生成的路径
-                    var path = data.obj;
+                    console.log("data:" + data)
+                    var path = data.data;
+                    console.log("path:" + path)
                     //真正的秒杀方法
                     doSecKill(path);
                 } else {
-                    layer.msg(data.message);
+                    layer.msg(data.msg);
                 }
             },
             error: function () {
@@ -274,9 +275,9 @@
             },
             success: function (data) {
                 if (data.code == 200) {
-                    layer.msg("秒杀结果" + data.message);
+                    layer.msg("秒杀结果" + data.msg);
                 } else {
-                    layer.msg(data.message);
+                    layer.msg(data.msg);
                 }
             },
             error: function () {
