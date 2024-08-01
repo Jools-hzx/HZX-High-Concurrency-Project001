@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Controller;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
@@ -70,61 +71,92 @@ public class SeckillController implements InitializingBean {
     @Resource
     private SeckillGoodsService seckillGoodsService;
 
-//    @RequestMapping("/doSeckill")
-//    public String doSecKill(User user, Model model, Integer goodsId) {
-//
-//        //检查输入
-//        if (null == goodsId || goodsId < 1 || null == model) {
-//            return "goodsList";
-//        }
-//
-//        //1.检查登录
-//        if (null == user) {
-//            return "login";
-//        }
-//
-//        //检查库存
-//        GoodsVo goodsVo = goodsService.getGoodsVoByGoodsId(goodsId);
-//
-//        Integer remainStock = goodsVo.getStockCount();
-//        if (remainStock < 1) {
+    @Resource
+    private RedisScript<Long> script;   //装配lua脚本
+
+    @RequestMapping("/doSeckill")
+    public String doSecKill(User user, Model model, Integer goodsId) {
+
+        //检查输入
+        if (null == goodsId || goodsId < 1 || null == model) {
+            return "goodsList";
+        }
+
+        //1.检查登录
+        if (null == user) {
+            return "login";
+        }
+
+        //检查库存
+        GoodsVo goodsVo = goodsService.getGoodsVoByGoodsId(goodsId);
+
+        Integer remainStock = goodsVo.getStockCount();
+        if (remainStock < 1) {
+            model.addAttribute("errmsg", RespBeanEnum.SECKILL_FAIL_NOT_ENOUGH_STOCK);
+            return "secKillFail";
+        }
+
+        //得到一个 uuid 的值，作为锁的值
+        String uuid = UUID.randomUUID().toString();
+
+        Boolean lock = redisTemplate.opsForValue().setIfAbsent("lock", uuid, 3, TimeUnit.SECONDS);
+        if (lock) {
+            Long decrement = redisTemplate.opsForValue().decrement("seckillGoods:" + goodsVo.getId());
+            if (decrement < 0) {
+                //将负数情况 + 1 置为 0 供下一次 decr 检查
+                //返回库存不足秒杀失败消息
+                redisTemplate.opsForValue().increment("seckillGoods:" + goodsVo.getId());
 //            model.addAttribute("errmsg", RespBeanEnum.SECKILL_FAIL_NOT_ENOUGH_STOCK);
-//            return "secKillFail";
-//        }
-//
-//        //检查是否发生重复购买 - 使用 Redis 进行优化
-//        /*
-//        SeckillOrder seckillOrder = seckillOrderService.getOne(new QueryWrapper<SeckillOrder>()
-//                                                        .eq("user_id", user.getId())
-//                                                        .eq("goods_id", goodsId));
-//        if (null != seckillOrder) {
-//            model.addAttribute("errmsg", RespBeanEnum.SECKILL_FAIL_DUPLICATE_BUY);
-//            return "secKillFail";
-//        }
-//         */
-//        Order order = null;
-//
-//        order = (Order) redisTemplate.opsForValue().get("order:" + user.getId() + ":" + goodsId);
-//        // 如果查询到该用户已经有该商品的秒杀订单，返回重复购买错误消息
-//        if (null != order) {
-//            model.addAttribute("errmsg", RespBeanEnum.SECKILL_FAIL_DUPLICATE_BUY);
-//            return "secKillFail";
-//        }
-//
-//        //否则建立秒杀订单
-//        order = orderService.saveSecKillOrder(user, goodsVo);
-//        if (null == order) {
-//            model.addAttribute("errmsg", RespBeanEnum.ERROR);
-//            return "secKillFail";
-//        }
-//
-//        //携带订单数据
-//        model.addAttribute("order", order);
-//        //携带商品数据
-//        model.addAttribute("goods", goodsVo);
-//
-//        return "orderDetail";
-//    }
+                //内存标记
+                stockCountFlag.put(Long.valueOf(goodsId), false);
+                //释放锁
+                redisTemplate.execute(script, Arrays.asList("lock"), uuid);
+                model.addAttribute("errmsg", RespBeanEnum.SECKILL_FAIL_NOT_ENOUGH_STOCK.getMessage());
+
+                //返回秒杀失败界面
+                return "secKillFail";
+            }
+            //生成订单之前
+            redisTemplate.execute(script, Arrays.asList("lock"), uuid);
+        } else {
+            //获取锁失败，返回信息; 这次抢票失败，请你继续抢购
+            model.addAttribute("errmsg", RespBeanEnum.SEC_KILL_RETRY.getMessage());
+            return "seckillFail";
+        }
+
+        //检查是否发生重复购买 - 使用 Redis 进行优化
+        /*
+        SeckillOrder seckillOrder = seckillOrderService.getOne(new QueryWrapper<SeckillOrder>()
+                                                        .eq("user_id", user.getId())
+                                                        .eq("goods_id", goodsId));
+        if (null != seckillOrder) {
+            model.addAttribute("errmsg", RespBeanEnum.SECKILL_FAIL_DUPLICATE_BUY);
+            return "secKillFail";
+        }
+         */
+        Order order = null;
+
+        order = (Order) redisTemplate.opsForValue().get("order:" + user.getId() + ":" + goodsId);
+        // 如果查询到该用户已经有该商品的秒杀订单，返回重复购买错误消息
+        if (null != order) {
+            model.addAttribute("errmsg", RespBeanEnum.SECKILL_FAIL_DUPLICATE_BUY);
+            return "secKillFail";
+        }
+
+        //否则建立秒杀订单
+        order = orderService.saveSecKillOrder(user, goodsVo);
+        if (null == order) {
+            model.addAttribute("errmsg", RespBeanEnum.ERROR);
+            return "secKillFail";
+        }
+
+        //携带订单数据
+        model.addAttribute("order", order);
+        //携带商品数据
+        model.addAttribute("goods", goodsVo);
+
+        return "orderDetail";
+    }
 
     //优化六: 该接口用于请求该用户用于秒杀的唯一路径
     //优化七: 携带用户输入的校验码，校验码校验通过之后才能完成秒杀操作

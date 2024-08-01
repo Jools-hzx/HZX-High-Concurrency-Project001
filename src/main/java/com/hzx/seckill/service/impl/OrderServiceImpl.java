@@ -85,6 +85,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>
             //这可以防止其他会话在同一行上执行 UPDATE 或者 DELETE 操作
             //如果更新成功，返回true 否则返回 false.
             //更新成功的条件为受影响的行数 >= 1
+            log.info("执行 update ---->" + user.getId());
             boolean update = seckillGoodsService.update(
                     new UpdateWrapper<SeckillGoods>()
                             .setSql("stock_count = stock_count - 1")

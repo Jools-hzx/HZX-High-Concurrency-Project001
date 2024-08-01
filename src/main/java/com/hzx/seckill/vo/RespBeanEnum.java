@@ -31,6 +31,7 @@ public enum RespBeanEnum {
     CAPTCHA_NO_VALID(500218, "校验码校验未通过"),
     RATE_LIMIT_EXCEPTION(500219, "请求过于频繁，请稍后再试...."),
     CAPTCHA_EXPIRED(500220, "校验码已经过期，请尝试重新获取..."),
+    SEC_KILL_RETRY(500221, "请你尝试重新秒杀"),
 
     //秒杀失败原因
     SECKILL_FAIL_DUPLICATE_BUY(50500, "秒杀失败，不能够重复购买!"),
