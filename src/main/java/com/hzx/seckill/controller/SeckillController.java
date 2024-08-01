@@ -2,6 +2,7 @@ package com.hzx.seckill.controller;
 
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.hzx.seckill.config.AccessLimit;
 import com.hzx.seckill.pojo.*;
 import com.hzx.seckill.rabbitmq.SeckillMQSender;
 import com.hzx.seckill.service.GoodsService;
@@ -125,11 +126,13 @@ public class SeckillController implements InitializingBean {
 //        return "orderDetail";
 //    }
 
-    //优化六:该接口用于请求该用户用于秒杀的唯一路径
-    //优化七:携带用户输入的校验码，校验码校验通过之后才能完成秒杀操作
+    //优化六: 该接口用于请求该用户用于秒杀的唯一路径
+    //优化七: 携带用户输入的校验码，校验码校验通过之后才能完成秒杀操作
+    //优化八: 使用拦截器完成限流规则机制
     @GetMapping("/path")
     @ResponseBody
-    public RespBean getPath(User user, Long goodsId, String captcha) {
+    @AccessLimit(second = 5, maxCount = 5, needLogin = true)
+    public RespBean getPath(User user, Long goodsId, String captcha, HttpServletRequest request) {
         if (user == null) return RespBean.error(RespBeanEnum.SESSION_INVALID_ERROR);
 
         //优化七：引入验证码校验机制，防止脚本
@@ -138,6 +141,21 @@ public class SeckillController implements InitializingBean {
         if (!captchaValid) {
             return RespBean.error(RespBeanEnum.CAPTCHA_NO_VALID);
         }
+
+        //优化八: 添加限流秒杀机制,统计单位时间内 5s 内访问该接口的频率
+        /*
+            String uri = request.getRequestURI();   //获取到请求的 uri
+            ValueOperations valueOperations = redisTemplate.opsForValue();
+            Integer count = (Integer) valueOperations.get("uri:" + user.getId());
+            if (null == count) {
+                //设置第一次访问，并且 5s 之后该统计会消失
+                valueOperations.set("uri:" + user.getId(), 1, 5, TimeUnit.SECONDS);
+            } else {
+                valueOperations.increment("uri:" + user.getId());
+            }
+            //如果短时间内超过 5 次，返回限流提示
+            if (count > 5) return RespBean.error(RespBeanEnum.RATE_LIMIT_EXCEPTION);
+         */
 
         //创建真正的地址
         String url = seckillOrderService.createPath(user, goodsId);
@@ -252,8 +270,8 @@ public class SeckillController implements InitializingBean {
         //调用 Hutool 工具类方法将 SeckillMessage 消息对象转换为字符串
         seckillMQSender.sendSecKillMsg(JSONUtil.toJsonStr(seckillMessage));
 
-        //直接返回 "秒杀中...." 消息给前端
-        model.addAttribute("errmsg", "秒杀排队中...");
+        //直接返回 "秒杀中...." 消息给前端 - 秒杀安全
+        //model.addAttribute("errmsg", "秒杀排队中...");
 
         return RespBean.error(RespBeanEnum.SEC_KILL_WAIT);
     }
@@ -340,11 +358,11 @@ public class SeckillController implements InitializingBean {
         HappyCaptcha.require(request, response)
                 .style(CaptchaStyle.ANIM) //设置展现样式为动画
                 .type(CaptchaType.NUMBER) //设置验证码内容为数字
-                .length(6) //设置字符长度为 6
-                .width(220) //设置动画宽度为 220
-                .height(80) //设置动画高度为 80
+                .length(6)          //设置字符长度为 6
+                .width(220)         //设置动画宽度为 220
+                .height(80)         //设置动画高度为 80
                 .font(Fonts.getInstance().zhFont()) //设置汉字的字体
-                .build().finish(); //生成并输出验证码
+                .build().finish();  //生成并输出验证码
 
         //将生成的校验码存放到 Redis
         redisTemplate.opsForValue().set(

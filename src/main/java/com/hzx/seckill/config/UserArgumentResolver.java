@@ -57,16 +57,18 @@ public class UserArgumentResolver implements HandlerMethodArgumentResolver {
     public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer,
                                   NativeWebRequest webRequest, WebDataBinderFactory binderFactory) throws Exception {
 
-        HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
-        HttpServletResponse response = webRequest.getNativeResponse(HttpServletResponse.class);
-
-        //从当前 request 内取出 userTicket
-        String userTicket = CookieUtil.getCookieValue(request, "userTicket");
-
-        //判断是否携带 ticket
-        if (!StringUtils.hasText(userTicket)) return null;
+//        HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
+//        HttpServletResponse response = webRequest.getNativeResponse(HttpServletResponse.class);
+//
+//        //从当前 request 内取出 userTicket
+//        String userTicket = CookieUtil.getCookieValue(request, "userTicket");
+//
+//        //判断是否携带 ticket
+//        if (!StringUtils.hasText(userTicket)) return null;
 
         //基于该 userTicket 获取到 User 信息
-        return userService.getUserByTicket(userTicket, request, response);
+
+        //优化: 使用拦截器完成登录校验
+        return UserContext.getUser();
     }
 }

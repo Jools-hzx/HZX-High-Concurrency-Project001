@@ -1,12 +1,14 @@
 package com.hzx.seckill.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hzx.seckill.exception.GlobalException;
 import com.hzx.seckill.pojo.SeckillOrder;
 import com.hzx.seckill.pojo.User;
 import com.hzx.seckill.service.SeckillOrderService;
 import com.hzx.seckill.mapper.SeckillOrderMapper;
 import com.hzx.seckill.utils.MD5Utils;
 import com.hzx.seckill.utils.UUIDUtils;
+import com.hzx.seckill.vo.RespBeanEnum;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -61,6 +63,12 @@ public class SeckillOrderServiceImpl
 
         //从 Redis 内取出验证码并且进行校验
         String saveCaptcha = (String) redisTemplate.opsForValue().get("captcha:" + user.getId() + ":" + goodsId);
+
+        //如果没有查询到，说明校验码已经过期，返回过期提示
+        if (null == saveCaptcha) {
+            throw new GlobalException(RespBeanEnum.CAPTCHA_EXPIRED);
+        }
+
         return saveCaptcha.equals(captcha);
     }
 }

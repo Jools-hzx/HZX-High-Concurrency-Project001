@@ -94,8 +94,11 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>
             //如果更新成功，说明库存允许秒杀，否则直接返回不生成订单
             if (!update) {
                 //如果更新失败，则构建失败订单消息保存到Redis内；供前端轮询查询结果
-                redisTemplate.opsForValue().set(failOrderkey,
-                        failOrderkey.append("-").append(new Date()).toString());
+                if (null == redisTemplate.opsForValue().get(failOrderkey.toString())) {
+                    redisTemplate.opsForValue().set(
+                            failOrderkey.toString(),
+                            failOrderkey.append("-").append(new Date()).toString());
+                }
                 return null;
             }
 
@@ -138,16 +141,22 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>
                 redisTemplate.opsForValue().set("order:" + user.getId() + ":" + goodsId, seckillOrder);
             } else {
                 //如果生成秒杀订单失败，记录失败订单
-                redisTemplate.opsForValue().set(failOrderkey,
-                        failOrderkey.append("-").append(new Date()).toString());
+                if (null == redisTemplate.opsForValue().get(failOrderkey.toString())) {
+                    redisTemplate.opsForValue().set(
+                            failOrderkey.toString(),
+                            failOrderkey.append("-").append(new Date()).toString());
+                }
                 throw new GlobalException(RespBeanEnum.ERROR);
             }
         } catch (Exception e) {
             log.info("生成秒杀订单是发生错误: user:{} goodsId:{}", user.getId(), goodsVo.getId());
             //如果发生异常，记录失败订单
-            redisTemplate.opsForValue().set(failOrderkey,
-                    failOrderkey.append("-").append(new Date()).toString());
-            throw new GlobalException(RespBeanEnum.ERROR);
+            if (null == redisTemplate.opsForValue().get(failOrderkey.toString())) {
+                redisTemplate.opsForValue().set(
+                        failOrderkey.toString(),
+                        failOrderkey.append("-").append(new Date()).toString());
+            }
+            return null;
         }
         return order;
     }
